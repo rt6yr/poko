@@ -15,9 +15,9 @@ app.use(bodyParser.json());
 app.use(morgan('combined'));  
 app.use(helmet());  
   
-const supabaseUri = process.env.SUPABASE_URI;  
-const supabaseKey = process.env.SUPABASE_KEY;  
-const supabase = createClient(supabaseUri, supabaseKey);  
+const supabaseuri = process.env.SUPABASE_URI;  
+const supabasekey = process.env.SUPABASE_KEY;  
+const supabase = createClient(supabaseuri, supabasekey);  
   
 // You will need to set these environment variables or edit the following values  
 const endpoint = process.env.ENDPOINT;  
