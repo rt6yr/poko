@@ -15,9 +15,9 @@ app.use(bodyParser.json());
 app.use(morgan('combined'));  
 app.use(helmet());  
   
-const supabaseuri = process.env.SUPABASE_URI;  
-const supabasekey = process.env.SUPABASE_KEY;  
-const supabase = createClient(supabaseuri, supabasekey);  
+const supabaseUri = process.env.SUPABASE_URI;  
+const supabaseKey = process.env.SUPABASE_KEY;  
+const supabase = createClient(supabaseUri, supabaseKey);  
   
 // You will need to set these environment variables or edit the following values  
 const endpoint = process.env.ENDPOINT;  
@@ -50,11 +50,14 @@ const messages = [...mess,...messa];
   const client = new OpenAIClient(endpoint, new AzureKeyCredential(azureApiKey));
   const deploymentId = "gpt-35-turbo";
   const result = await client.getChatCompletions(deploymentId, messages);
-    console.log(result);
-  for (const choice of result.choices) {
-    // console.log(choice.message);
-    return (choice.message);
-  }
+console.log(result);
+  return result;
+  // for (const choice of result.choices) {
+  //   console.log(choice.message);
+  //   return (choice.message);
+  // }
+ //     console.log("Tokens Used:", result.usage.totalTokens);  
+ //   console.log("Cost:", result.usage.totalCost); 
 }
 
 function test(messa)
@@ -74,11 +77,19 @@ app.all("*", async (req, res) => {
   } else {  
  
   const response = await getChatbotResponse(data.messages);
-res.send(response.content);
+    // res.send(response.choices);
+      for (const choice of response.choices) {
+          // (choice.message);
+    res.send(choice.message);
+ }
+      // const tokenCount = response.usage.totalTokens;  
+  // const cost = response.usage.totalCost;  
+    // console.log(tokenCount);
+    // console.log(cost);
     // res.send(test(data.messages));
     let dbdata={
         created_at: new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }),
-        in:data,
+        input:data,
         out:response,
       ulid:ulidgen
     };
