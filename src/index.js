@@ -18,8 +18,8 @@ app.use(helmet());
 const supabaseUri = process.env.SUPABASE_URI;  
 const supabaseKey = process.env.SUPABASE_KEY;  
 const supabase = createClient(supabaseUri, supabaseKey);  
-  
-// You will need to set these environment variables or edit the following values  
+  //  will also add health checker 
+// endpoint & azure key 
 const endpoint = process.env.ENDPOINT;  
 const azureApiKey = process.env.AZURE_KEY;  
 const ulidgen=ulid();
@@ -32,23 +32,15 @@ function isValidFormat(message) {
   if (!message.role || !message.content) return false;  
   return true;  
 }  
-  
-// async function getChatbotResponse(message) {  
-//   const client = new OpenAIClient(endpoint, new AzureKeyCredential(azureApiKey));  
-//   const deploymentId = "gpt-35-turbo-16k";  
-//   const result = await client.getCompletions(deploymentId, message, { maxTokens: 128 });  
-//   for (const choice of result.choices) {  
-//     console.log(choice.text);  
-//   }  
-// }  
+
 async function getChatbotResponse(messa) {
   //  generate messages ultitlizing both the mess string and the user request
 const messages = [...mess,...messa];  
 
   console.log(messages);
-
+//  set deployemntid to gpt-40
   const client = new OpenAIClient(endpoint, new AzureKeyCredential(azureApiKey));
-  const deploymentId = "gpt-35-turbo";
+  const deploymentId = "gpt-4o";
   const result = await client.getChatCompletions(deploymentId, messages);
 console.log(result);
   return result;
@@ -77,16 +69,18 @@ app.all("*", async (req, res) => {
   } else {  
  
   const response = await getChatbotResponse(data.messages);
-    // res.send(response.choices);
-      for (const choice of response.choices) {
-          // (choice.message);
-    res.send(choice.message.content);
- }
-      // const tokenCount = response.usage.totalTokens;  
-  // const cost = response.usage.totalCost;  
-    // console.log(tokenCount);
-    // console.log(cost);
-    // res.send(test(data.messages));
+ 
+ //      for (const choice of response.choices) {
+    
+ //    res.send(choice.message.content);
+ // }
+      if (response.choices.length > 0) {  
+      const firstChoice = response.choices[0];  
+      res.send(firstChoice.message.content);  
+    } else {  
+      res.send('No response from the chatbot');  
+    } 
+
     let dbdata={
         created_at: new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }),
         input:data,
