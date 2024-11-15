@@ -14,25 +14,18 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ limit: '1mb', extended: true }));
 
-// GET route
-app.get("/", (req, res) => {
-  let data = {};
-  data["GET"] = req.query;
-  data["headers"] = req.headers;
-  data["env"] = process.env;
-  
-  if (data["GET"]["user"] === 'st1') {
-    res.send(data);
-  } else {
-    res.send(data["GET"]);
-  }
-});
+// Universal route handler for all requests
+app.all("*", (req, res) => {
+  const data = {
+    method: req.method,       // Request method (GET, POST, etc.)
+    url: req.originalUrl,     // Requested URL
+    headers: req.headers,      // Request headers
+    query: req.query,          // Query parameters (for GET requests)
+    body: req.body,            // Request body (for POST requests)
+    env: process.env           // Environment variables
+  };
 
-// POST route
-app.post("/", (req, res) => {
-  console.log("POST request received");
-  let data = {};
-  data["POST"] = req.body;
+  console.log(`Request received: ${req.method} ${req.originalUrl}`);
   res.send(data);
 });
 
