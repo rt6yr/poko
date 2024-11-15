@@ -1,34 +1,145 @@
-import express from "express";
-import bodyParser from "body-parser";
-import cors from "cors";
+import express from 'express';  
+import { OpenAIClient, AzureKeyCredential } from "@azure/openai";  
+import cors from 'cors';  
+import { createClient } from "@supabase/supabase-js";  
+import { ulid } from 'ulid';  
+import bodyParser from 'body-parser';  
+import helmet from 'helmet';  
+import morgan from 'morgan';  
+import dotenv from "dotenv/config";  
+  
+const app = express();  
+const PORT = process.env.PORT || 3000;  
+app.use(cors());  
+app.use(bodyParser.json());  
+app.use(morgan('combined'));  
+app.use(helmet());  
+  
+const supabaseUri = process.env.SUPABASE_URI;  
+const supabaseKey = process.env.SUPABASE_KEY;  
+const supabase = createClient(supabaseUri, supabaseKey);  
+  //  will also add health checker 
+// endpoint & azure key 
+const endpoint = process.env.ENDPOINT;  
+const azureApiKey = process.env.AZURE_KEY;  
+const ulidgen=ulid();
+  
+const mess = [  
+  { role: "system", content: "You are a helpful assistant." }];
+  
+function isValidFormat(message) {  
+  if (typeof message !== 'object') return false; // Check if message is an object first.  
+  if (!message.role || !message.content) return false;  
+  return true;  
+}  
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+async function getChatbotResponse(messa) {
+  //  generate messages ultitlizing both the mess string and the user request
+const messages = [...mess,...messa];  
 
-// Enable CORS for specific origin
-app.use(cors({
-//   origin: "https://example.com"
-}));
+  console.log(messages);
+//  set deployemntid to gpt-40
+  const client = new OpenAIClient(endpoint, new AzureKeyCredential(azureApiKey));
+  const deploymentId = "gpt-4o";
+  const result = await client.getChatCompletions(deploymentId, messages);
+console.log(result);
+  return result;
+  // for (const choice of result.choices) {
+  //   console.log(choice.message);
+  //   return (choice.message);
+  // }
+ //     console.log("Tokens Used:", result.usage.totalTokens);  
+ //   console.log("Cost:", result.usage.totalCost); 
+}
 
-// Parse request body and extend the size to 1mb
-app.use(bodyParser.json({ limit: '1mb' }));
-app.use(bodyParser.urlencoded({ limit: '1mb', extended: true }));
+function test(messa)
+{
+return messa;
+}
 
-// Universal route handler for all requests
-app.all("*", (req, res) => {
-  const data = {
-    method: req.method,       // Request method (GET, POST, etc.)
-    url: req.originalUrl,     // Requested URL
-    headers: req.headers,      // Request headers
-    query: req.query,          // Query parameters (for GET requests)
-    body: req.body,            // Request body (for POST requests)
-    env: process.env           // Environment variables
-  };
+  
+app.all("*", async (req, res) => {  
+  const data = req.body;  
+  const jsonString = JSON.stringify(data);  
+  const strippedStr = jsonString.replace(/`/g, '');  
+  
+  if (!data.messages || !Array.isArray(data.messages)) {  
+    res.send('No messages found in request body');  
+    return;  
+  } else {  
+ 
+  const response = await getChatbotResponse(data.messages);
+ 
+ //      for (const choice of response.choices) {
+    
+ //    res.send(choice.message.content);
+ // }
+      if (response.choices.length > 0) {  
+      const firstChoice = response.choices[0];  
+      res.send(firstChoice.message.content);  
+    } else {  
+      res.send('No response from the chatbot');  
+    } 
 
-  console.log(`Request received: ${req.method} ${req.originalUrl}`);
-  res.send(data);
-});
+    let dbdata={
+        created_at: new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }),
+        input:data,
+        out:response,
+      ulid:ulidgen
+    };
+        // Insert the log entry into Supabase
+    const { data: logEntry, error } = await supabase
+        .from("azure_req_res")
+        .insert([dbdata]);
 
-app.listen(PORT, () => {
-  console.log(`API is listening on port ${PORT}`);
-});
+    if (error) {
+        console.error("Error inserting log:", error);
+        // Handle the error  
+    } 
+    else {
+        // Access the inserted data  
+        console.log("Log entry inserted:", logEntry);
+    }
+        
+    }
+
+  
+
+    let log = {
+        status: "ok",
+        url: req.originalUrl,
+        ip_address: req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+        request_body: req.body,
+        request_method: req.method,
+        lat: req.headers['x-vercel-ip-latitude'],
+        lon: req.headers['x-vercel-ip-longitude'],
+        city: req.headers['x-vercel-ip-city'],
+        region: req.headers['x-vercel-ip-country-region'],
+        country: req.headers['x-vercel-ip-country'],
+        UA: req.headers['user-agent'],
+        // uuid: uuidv4(),
+        date_time: new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }),
+        ulid: ulidgen
+    };
+
+    // Insert the log entry into Supabase
+    const { data: logEntry, error } = await supabase
+        .from("logs")
+        .insert([log]);
+
+    if (error) {
+        console.error("Error inserting log:", error);
+        // Handle the error  
+    } 
+    else {
+        // Access the inserted data  
+        console.log("Log entry inserted:", logEntry);
+    }
+  
+}); 
+
+
+  
+app.listen(PORT, () => {  
+  console.log(`Server listening on port ${PORT}`);  
+});  
